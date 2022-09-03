@@ -130,7 +130,7 @@ class FP16_Optimizer(object):
         self.verbose = verbose
 
         self.clip_grad = clip_grad
-        self.norm_type = 2
+        self.norm_type = "infinity"
 
         TORCH_MAJOR = int(torch.__version__.split(".")[0])
         TORCH_MINOR = int(torch.__version__.split(".")[1])
@@ -330,10 +330,15 @@ class FP16_Optimizer(object):
         return self.overflow
 
     def unscale_and_clip_grads(self, grad_groups_flat, norm_groups, apply_scale=True):
-        total_norm = 0.0
-        for norm in norm_groups:
-            total_norm += norm ** 2.0
-        total_norm = math.sqrt(total_norm)
+        if self.norm_type == 2:
+            total_norm = 0.0
+            for norm in norm_groups:
+                total_norm += norm ** 2.0
+            total_norm = math.sqrt(total_norm)
+        elif self.norm_type == "infinity":
+            total_norm = max(abs(norm_groups))
+        else:
+            raise NotImplementedError
 
         # compute combined scale factor for this group
         combined_scale = self.cur_scale
