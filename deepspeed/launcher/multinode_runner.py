@@ -115,6 +115,9 @@ class OpenMPIRunner(MultiNodeRunner):
             'btl',
             '^openib',
             '--mca',
+            'plm',
+            '^slurm',
+            '--mca',
             'btl_tcp_if_include',
             'eth0',
         ]
