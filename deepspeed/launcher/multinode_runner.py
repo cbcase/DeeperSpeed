@@ -111,6 +111,8 @@ class OpenMPIRunner(MultiNodeRunner):
             'PATH',
             '-x',
             'LD_LIBRARY_PATH',
+            '-x',
+            'LD_PRELOAD',
             '--mca',
             'btl',
             '^openib',
