@@ -75,7 +75,7 @@ class TiedLayerSpec(LayerSpec):
                  typename,
                  *module_args,
                  forward_fn=None,
-                 tied_weight_attr='weight',
+                 tied_weight_attr=['weight'],
                  **module_kwargs):
         super().__init__(typename, *module_args, **module_kwargs)
         self.key = key
@@ -415,17 +415,20 @@ class PipelineModule(nn.Module):
     def allreduce_tied_weight_gradients(self):
         '''All reduce the gradients of the tied weights between tied stages'''
         for key, comm in self.tied_comms.items():
-            weight = getattr(self.tied_modules[key], comm['weight_attr'])
-            dist.all_reduce(weight.grad, group=comm['group'])
+            # TODO(Hailey): does doing multiple allreduces here tank performance? if so, how can we do this all in one
+            for tied_attr in comm['weight_attr']: # note that comm['weight_attr'] is a list now
+                weight = getattr(self.tied_modules[key], tied_attr)
+                dist.all_reduce(weight.grad, group=comm['group'])
 
     def _synchronize_tied_weights(self):
         for key, comm in self.tied_comms.items():
-            dist.broadcast(
-                getattr(comm['module'],
-                        comm['weight_attr']),
-                src=min(comm['ranks']),
-                group=comm['group'],
-            )
+            for tied_attr in comm['weight_attr']:
+                dist.broadcast(
+                    getattr(comm['module'],
+                            tied_attr),
+                    src=min(comm['ranks']),
+                    group=comm['group'],
+                )
 
     def _index_tied_modules(self):
         ''' Build communication structures for tied modules. '''
