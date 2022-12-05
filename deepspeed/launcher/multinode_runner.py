@@ -124,9 +124,19 @@ class SlurmRunner(MultiNodeRunner):
     def __init__(self, args, world_info_base64, resource_pool):
         super().__init__(args, world_info_base64)
         self.resource_pool = resource_pool
+        self.launcher_args = self.parse_launcher_args()
 
     def backend_exists(self):
         return shutil.which('sinfo')
+
+    def parse_launcher_args(self):
+        if self.args.launcher_args:
+            kv_pairs = [
+                kv.split('=') for kv in self.args.launcher_args.split(',')
+            ]
+            return {k: v for k, v in kv_pairs}
+        else:
+            return {}
     
     def parse_user_args(self):
         user_args = []
@@ -153,9 +163,9 @@ class SlurmRunner(MultiNodeRunner):
             '-n',
             f'{total_process_count}',
         ]
-
-        if getattr(self.args, 'slurm_comment', ''):
-            srun_cmd += ['--comment', self.args.slurm_comment]
+        comment = self.launcher_args.get('comment')
+        if comment is not None:
+            srun_cmd += ['--comment', comment]
 
         if self.args.include != "":
             srun_cmd.append('--include')
@@ -169,7 +179,6 @@ class SlurmRunner(MultiNodeRunner):
         if self.args.num_gpus > 0:
             srun_cmd.append('--gpus')
             srun_cmd.append(f'{self.args.num_gpus}')
-
 
         exports = '--export=ALL' 
         for key, val in self.exports.items():
