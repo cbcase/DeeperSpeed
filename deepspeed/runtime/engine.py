@@ -560,7 +560,8 @@ class DeepSpeedEngine(Module):
         return self._config.memory_breakdown
 
     def autotuning_enabled(self):
-        return self._config.autotuning_config.enabled
+        #return self._config.autotuning_config.enabled
+        return True
 
     def autotuning_start_profile_step(self):
         return self._config.autotuning_config.start_profile_step
@@ -575,19 +576,23 @@ class DeepSpeedEngine(Module):
         return path
 
     def autotuning_model_info_path(self):
-        path = self._config.autotuning_config.model_info_path
-        if not path:
-            path = os.path.join(os.getcwd(), "autotuning_model_info.json")
+        #path = self._config.autotuning_config.model_info_path
+        #if not path:
+        #    path = os.path.join(os.getcwd(), "autotuning_model_info.json")
+        path = '/fsx/dashiell/autotuning_model_info.json'
         return path
 
     def autotuning_metric(self):
         return self._config.autotuning_config.metric
 
     def autotuning_profile_model_info(self):
-        return self.autotuning_enabled(
-        ) and self._config.autotuning_config.model_info and self._config.autotuning_config.model_info.get(
-            "profile",
-            False)
+        #print(f'Autotuning enabled: {self.autotuning_enabled()}')
+        #print(f'Model info: {self._config.autotuning_config}')
+        #return self.autotuning_enabled(
+        #) and self._config.autotuning_config.model_info and self._config.autotuning_config.model_info.get(
+        #    "profile",
+        #    False)
+        return True
 
     def sparse_gradients_enabled(self):
         return self._config.sparse_gradients_enabled
@@ -920,9 +925,11 @@ class DeepSpeedEngine(Module):
             args.local_rank = self.local_rank
 
         if self.config is None:
+            print(f'#### Setting config here, config ')
             self.config = (args.deepspeed_config
                            if hasattr(args,
                                       "deepspeed_config") else None)
+        print(self.config)
         self._config = DeepSpeedConfig(self.config, mpu)
 
     # Validate command line arguments
@@ -1739,10 +1746,11 @@ class DeepSpeedEngine(Module):
         if self.autotuning_profile_model_info():
             activation_mem = get_ma_status() - ma
             self.autotuning_model_info["activation_mem_per_gpu"] = activation_mem
+            print(self.autotuning_model_info)
             print_json_dist(self.autotuning_model_info,
                             [0],
                             path=self.autotuning_model_info_path())
-            exit()
+            #exit()
         else:
             see_memory_usage("Engine after forward", force=self.memory_breakdown())
         return loss
@@ -2105,8 +2113,10 @@ class DeepSpeedEngine(Module):
                 )
             self.flops_profiler.end_profile()
 
-        if self.autotuning_enabled() and self.global_steps == (
-                self.autotuning_end_profile_step() + 1):
+        #if self.autotuning_enabled() and self.global_steps == (
+        #        self.autotuning_end_profile_step() + 1):
+        if self.global_steps == 31:
+            print(f'Exiting auotuning')
             self._autotuning_exit()
 
         if self.wall_clock_breakdown():
