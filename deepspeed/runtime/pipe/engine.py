@@ -660,7 +660,6 @@ class PipelineEngine(DeepSpeedEngine):
         else:
             inputs = self.pipe_buffers['inputs'][buffer_id].clone()
 
-        print(f"_exec_forward_pass: id:{buffer_id} ipp:{self.is_pipe_partitioned} fs:{self.is_first_stage()} ls: {self.is_last_stage()}")
         # collect the partitioned input from the previous stage
         if self.is_pipe_partitioned and not self.is_first_stage():
             part_input = PartitionedTensor.from_meta(
@@ -681,7 +680,6 @@ class PipelineEngine(DeepSpeedEngine):
 
         outputs = super().forward(inputs)
 
-        print(f"_exec_forward_pass: in{inputs} out:{outputs}")
         # Partition the outputs if we are not the last stage
         if self.is_pipe_partitioned and not self.is_last_stage():
             part = PartitionedTensor(tensor=outputs[0],
