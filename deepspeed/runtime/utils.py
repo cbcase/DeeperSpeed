@@ -15,8 +15,12 @@ from bisect import bisect_left, bisect_right
 
 import torch
 import torch.distributed as dist
-from torch._six import inf
 import torch.distributed as dist
+
+try:
+    from torch._six import inf as inf
+except ModuleNotFoundError:
+    from torch import inf as inf
 
 from deepspeed.utils import logger
 from numpy import prod
