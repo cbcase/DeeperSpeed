@@ -11,12 +11,11 @@ import torch
 from torch.distributed.distributed_c10d import _get_global_rank
 import torch.distributed as dist
 import math
-from torch._six import inf
 from torch.autograd import Variable
 
 from deepspeed.utils.logging import logger
 from deepspeed.runtime.fp16.loss_scaler import LossScaler, DynamicLossScaler
-from deepspeed.runtime.utils import see_memory_usage, is_model_parallel_parameter
+from deepspeed.runtime.utils import inf, see_memory_usage, is_model_parallel_parameter
 from deepspeed.runtime.zero.partition_parameters import *
 from deepspeed.runtime.zero.partition_parameters import _init_external_params
 from deepspeed.runtime.zero.constants import ZERO_OPTIMIZATION_WEIGHTS
