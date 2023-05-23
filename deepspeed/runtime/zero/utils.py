@@ -23,6 +23,10 @@ def _initialize_parameter_parallel_groups(parameter_parallel_size=None):
     return my_group
 
 
+class ZeRORuntimeException(Exception):
+    pass
+
+
 ZERO_SUPPORTED_OPTIMIZERS = [
     torch.optim.Adam,
     torch.optim.AdamW,

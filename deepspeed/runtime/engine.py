@@ -20,7 +20,7 @@ from deepspeed.runtime.utils import see_memory_usage
 from deepspeed.runtime.zero.stage2 import FP16_DeepSpeedZeroOptimizer
 from deepspeed.runtime.zero.stage1 import FP16_DeepSpeedZeroOptimizer_Stage1
 from deepspeed.runtime.zero.partition_parameters import ZeroParamStatus
-from deepspeed.runtime.zero.utils import is_zero_supported_optimizer
+from deepspeed.runtime.zero.utils import is_zero_supported_optimizer, ZeRORuntimeException
 from deepspeed.runtime.activation_checkpointing import checkpointing as activation_checkpointing
 from deepspeed.runtime.fp16.fused_optimizer import FP16_Optimizer, FP16_FUSED_SUPPORTED_OPTIMIZERS, is_fp16_fused_supported_optimizer
 from deepspeed.runtime.fp16.unfused_optimizer import FP16_UnfusedOptimizer
@@ -1599,10 +1599,22 @@ class DeepSpeedEngine(Module):
             self.optimizer._restore_from_fp16_weights()
             return
 
+        if load_optimizer_states and self.dp_world_size != self.loaded_checkpoint_dp_world_size:
+            raise ZeRORuntimeException("The checkpoint being loaded used a DP " \
+                f"world size of {self.loaded_checkpoint_dp_world_size} but the " \
+                f"current world size is {self.dp_world_size}. Automatic adjustment " \
+                "of ZeRO's optimizer state partitioning with a new world size is not " \
+                "currently supported.")
+
+        # Force optimizer to be "non-elastic" during checkpoint loading so it doesn't expect that
+        # it gets the state dict for every dp rank.
+        is_elastic = self.optimizer.elastic_checkpoint
+        self.optimizer.elastic_checkpoint = False
         self.optimizer.load_state_dict(
             state_dict_list=zero_sd_list,
             load_optimizer_states=load_optimizer_states,
             load_from_fp32_weights=self.zero_load_from_fp32_weights())
+        self.optimizer.elastic_checkpoint = is_elastic
         print(
             f'loading {len(zero_sd_list)} zero partition checkpoints for rank {self.global_rank}'
         )
@@ -1664,9 +1676,11 @@ class DeepSpeedEngine(Module):
         # NOTE(carl): this code is a hack to ensure we don't load _all_ data-parallel checkpoints
         # when we need only one of them.
         # Adapted from https://github.com/microsoft/DeepSpeed/pull/1525
+        # Note that we ignore the `elastic_checkpoint` codepath and check elsewhere that the world
+        # size hasn't changed.
         for i, ckpt_name in enumerate(zero_ckpt_names):
             ckpt_state = {'optimizer_state_dict': None}
-            if self.optimizer.elastic_checkpoint or dist.get_rank(group=self.optimizer.dp_process_group) == i:
+            if dist.get_rank(group=self.optimizer.dp_process_group) == i:
                 ckpt_state = torch.load(ckpt_name, map_location='cpu')
                 non_empty_count += 1
             zero_sd_list.append(ckpt_state)
