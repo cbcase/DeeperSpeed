@@ -1660,12 +1660,20 @@ class DeepSpeedEngine(Module):
             return None
 
         zero_sd_list = []
-        for ckpt_name in zero_ckpt_names:
-            zero_sd_list.append(torch.load(ckpt_name, map_location='cpu'))
+        non_empty_count = 0
+        # NOTE(carl): this code is a hack to ensure we don't load _all_ data-parallel checkpoints
+        # when we need only one of them.
+        # Adapted from https://github.com/microsoft/DeepSpeed/pull/1525
+        for i, ckpt_name in enumerate(zero_ckpt_names):
+            ckpt_state = {'optimizer_state_dict': None}
+            if self.optimizer.elastic_checkpoint or dist.get_rank(group=self.optimizer.dp_process_group) == i:
+                ckpt_state = torch.load(ckpt_name, map_location='cpu')
+                non_empty_count += 1
+            zero_sd_list.append(ckpt_state)
 
         zero_optimizer_sd = [sd['optimizer_state_dict'] for sd in zero_sd_list]
         print(
-            f"successfully loaded {len(zero_optimizer_sd)} ZeRO state_dicts for rank {self.global_rank}"
+            f"successfully loaded {len(zero_optimizer_sd)} ZeRO state_dicts for rank {self.global_rank} ({non_empty_count} materialized in memory)"
         )
         return zero_optimizer_sd
 
