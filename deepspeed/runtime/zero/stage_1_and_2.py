@@ -4,13 +4,13 @@ Copyright 2019 The Microsoft DeepSpeed Team
 
 import torch
 from deepspeed import comm as dist
-from torch._six import inf
 from packaging import version as pkg_version
 
 from deepspeed.runtime import ZeROOptimizer
 from deepspeed.runtime.fp16.loss_scaler import LossScaler, DynamicLossScaler
 from deepspeed.runtime.utils import (bwc_tensor_model_parallel_rank,
                                      get_global_norm,
+                                     inf,
                                      see_memory_usage,
                                      is_model_parallel_parameter,
                                      align_dense_tensors,
