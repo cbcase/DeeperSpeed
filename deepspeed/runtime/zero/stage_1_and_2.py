@@ -1815,13 +1815,21 @@ class DeepSpeedZeroOptimizer(ZeROOptimizer):
                 # If we are last partition, ensure we have same size grads and partition size, if not pad with zero tensors
                 if partition_id == dist.get_world_size(
                         group=self.real_dp_process_group[i]) - 1:
+                    self.averaged_gradients[i] = self.averaged_gradients[i].to(self.single_partition_of_fp32_groups[i].dtype)
                     single_grad_partition = self.flatten_dense_tensors_aligned(
                         self.averaged_gradients[i],
-                        int(self.partition_size[i])).to(
-                            self.single_partition_of_fp32_groups[i].dtype)
+                        int(self.partition_size[i]))
+                    # single_grad_partition = self.flatten_dense_tensors_aligned(
+                    #     self.averaged_gradients[i],
+                    #     int(self.partition_size[i])).to(
+                    #         self.single_partition_of_fp32_groups[i].dtype)
+                    self.averaged_gradients[i] = None
                 else:
-                    single_grad_partition = self.flatten(self.averaged_gradients[i]).to(
-                        self.single_partition_of_fp32_groups[i].dtype)
+                    self.averaged_gradients[i] = self.averaged_gradients[i].to(self.single_partition_of_fp32_groups[i].dtype)
+                    single_grad_partition = self.flatten(self.averaged_gradients[i])
+                    self.averaged_gradients[i] = None
+                    # single_grad_partition = self.flatten(self.averaged_gradients[i]).to(
+                    #     self.single_partition_of_fp32_groups[i].dtype)
                 assert single_grad_partition.numel() == self.partition_size[i], \
                     "averaged gradients have different number of elements that partition size {} {} {} {}".format(
                         single_grad_partition.numel(), self.partition_size[i], i, partition_id)
