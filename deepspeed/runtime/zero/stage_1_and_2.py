@@ -1705,15 +1705,23 @@ class DeepSpeedZeroOptimizer(ZeROOptimizer):
                 # free gradients for all the parameters that are not updated by this process(ZeRO stage2)
                 self.free_grad_in_param_list(self.params_not_in_partition[i])
 
+                grads_to_flatten = self.averaged_gradients[i]
+                self.averaged_gradients[i] = None
+                for j in range(len(grads_to_flatten)):
+                    grads_to_flatten[j] = grads_to_flatten[j].to(self.single_partition_of_fp32_groups[i].dtype)
                 # create a flat gradients for parameters updated by this process
                 # If we are last partition, ensure we have same size grads and partition size, if not pad with zero tensors
                 if partition_id == dist.get_world_size(group=self.real_dp_process_group[i]) - 1:
                     single_grad_partition = self.flatten_dense_tensors_aligned(
-                        self.averaged_gradients[i],
-                        int(self.partition_size[i])).to(self.single_partition_of_fp32_groups[i].dtype)
+                        grads_to_flatten, int(self.partition_size[i]))
+                    # single_grad_partition = self.flatten_dense_tensors_aligned(
+                    #     self.averaged_gradients[i],
+                    #     int(self.partition_size[i])).to(self.single_partition_of_fp32_groups[i].dtype)
                 else:
-                    single_grad_partition = self.flatten(self.averaged_gradients[i]).to(
-                        self.single_partition_of_fp32_groups[i].dtype)
+                    single_grad_partition = self.flatten(grads_to_flatten)
+                    # single_grad_partition = self.flatten(self.averaged_gradients[i]).to(
+                    #     self.single_partition_of_fp32_groups[i].dtype)
+                del grads_to_flatten
                 assert single_grad_partition.numel() == self.partition_size[i], \
                     "averaged gradients have different number of elements that partition size {} {} {} {}".format(
                         single_grad_partition.numel(), self.partition_size[i], i, partition_id)
