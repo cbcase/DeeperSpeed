@@ -609,6 +609,14 @@ class DeepSpeedEngine(Module):
             return True
 
         for p in self.module.parameters():
+            # NOTE(Carl, 8/29/23)
+            # For a while, we have been seeing hangs during multi-node initialization.
+            # I have narrowed it to this loop, but any attempt to log things in a fine-grained manner
+            # makes the hang go away. I suspect there is a bug somewhere in DS/PyTorch/NCCL, and it's
+            # likely fixed on newer versions (a container based on PyTorch nightly doesn't hang).
+            # Long-term, we need to upgrade DS and move to the newer PyTorch version, but for now
+            # we can avoid the hang by sync'ing on each iteration of this loop. *shrug*
+            torch.cuda.synchronize()
             if torch.is_tensor(p) and is_replicated(p):
                 if self.precision() == torch.bfloat16 and self.allreduce_always_fp32():
                     p.data = p.float().data
